@@ -1,0 +1,96 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== Enums =====
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum Plan {
+  FREE
+  PRO
+}
+
+// ===== Models =====
+
+// App-level user (backed by Clerk)
+model User {
+  id           String        @id @default(cuid())
+  clerkUserId  String        @unique
+  email        String
+
+  memberships  Membership[]
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+// One tenant workspace / org (like "Acme Inc")
+model Organization {
+  id            String          @id @default(cuid())
+  name          String
+
+  memberships   Membership[]
+  subscription  Subscription?
+  usageRecords  UsageRecord[]
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+// Which user is in which org, and with what role
+model Membership {
+  id        String        @id @default(cuid())
+
+  userId    String
+  orgId     String
+  role      Role          @default(MEMBER)
+
+  user      User          @relation(fields: [userId], references: [id])
+  org       Organization  @relation(fields: [orgId], references: [id])
+
+  createdAt DateTime      @default(now())
+}
+
+// Billing/subscription info for the org
+model Subscription {
+  id                   String         @id @default(cuid())
+
+  orgId                String         @unique
+  org                  Organization   @relation(fields: [orgId], references: [id])
+
+  plan                 Plan           @default(FREE)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  currentPeriodEnd     DateTime?      // end of current Stripe billing cycle
+
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+}
+
+// Monthly AI usage per org (used for Free limit / Pro unlimited)
+model UsageRecord {
+  id           String        @id @default(cuid())
+
+  orgId        String
+  org          Organization  @relation(fields: [orgId], references: [id])
+
+  month        String        // "2025-10" (YYYY-MM)
+  generations  Int           @default(0)
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([orgId, month])
+}
