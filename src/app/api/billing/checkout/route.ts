@@ -1,34 +1,34 @@
 import { NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { currentUser } from "@clerk/nextjs/server";
 import { stripe } from "@/lib/stripe";
 
-// Force Node runtime (Stripe can't run in edge runtime)
+// Stripe's Node SDK can't run in the Edge runtime
 export const runtime = "nodejs";
 
 export async function POST() {
   try {
     console.log("=== /api/billing/checkout HIT ===");
 
-    // 1. must be signed in
-    const { userId } = auth();
-    if (!userId) {
-      console.log("No userId");
+    // 1. get the signed-in user via Clerk
+    const user = await currentUser();
+
+    if (!user) {
+      console.log("No user from currentUser()");
       return NextResponse.json(
         { error: "Not signed in" },
         { status: 401 }
       );
     }
 
-    // 2. get user email
-    const user = await currentUser();
+    // 2. grab their email for Stripe
     const email =
-      user?.emailAddresses?.[0]?.emailAddress ??
-      user?.primaryEmailAddress?.emailAddress ??
+      user.emailAddresses?.[0]?.emailAddress ??
+      user.primaryEmailAddress?.emailAddress ??
       "no-email@example.com";
 
     console.log("Using email for checkout:", email);
 
-    // 3. sanity-check env
+    // 3. sanity check env so we don't call Stripe with bad config
     if (!process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO) {
       console.error("Missing NEXT_PUBLIC_STRIPE_PRICE_PRO");
       return NextResponse.json(
@@ -36,6 +36,7 @@ export async function POST() {
         { status: 500 }
       );
     }
+
     if (!process.env.NEXT_PUBLIC_APP_URL) {
       console.error("Missing NEXT_PUBLIC_APP_URL");
       return NextResponse.json(
@@ -44,7 +45,7 @@ export async function POST() {
       );
     }
 
-    // 4. create Checkout Session
+    // 4. create a Stripe Checkout Session for a subscription
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer_email: email,
@@ -60,11 +61,13 @@ export async function POST() {
 
     console.log("Stripe session created:", session.url);
 
-    // 5. return URL to client
-    return NextResponse.json({ url: session.url }, { status: 200 });
+    // 5. send the checkout URL back to the browser
+    return NextResponse.json(
+      { url: session.url },
+      { status: 200 }
+    );
   } catch (err: any) {
     console.error("CHECKOUT ERROR:", err);
-    // Always respond JSON, never HTML
     return NextResponse.json(
       { error: err?.message || "Checkout failed" },
       { status: 500 }
