@@ -1,67 +1,101 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
-import UpgradeButton from "@/components/dashboard/UpgradeButton";
+// src/app/(dashboard)/dashboard/page.tsx
+// Org-aware dashboard with usage counter and quick nav (Pricing, AI demo, Settings).
+// Server component – no "use client".
 
-// TODO Stage 5: actually read plan from Prisma Subscription table using orgId.
-// For now we just hardcode "Free".
-async function getPlanForNow() {
-  return "Free";
-}
+import { currentUser } from "@clerk/nextjs/server";
+import { prisma } from "@/lib/db";
+import { getUsage } from "@/lib/usage";
+import Link from "next/link";
 
-export default async function DashboardHomePage() {
-  const { orgId } = auth();
+export default async function DashboardPage() {
   const user = await currentUser();
+  if (!user) return null;
 
-  if (!user) {
+  // 1) Find the user's first workspace (membership → orgId)
+  const membership = await prisma.membership.findFirst({
+    where: { user: { clerkUserId: user.id } },
+    include: { org: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  // 2) If no workspace yet → FREE state
+  if (!membership) {
+    const used = 0;
     return (
-      <main className="p-8">
-        <h2 className="text-xl font-semibold">Not signed in</h2>
-        <p className="text-slate-600 dark:text-slate-400 text-sm mt-2">
-          You should have been redirected to /sign-in. Check middleware.
-        </p>
+      <main className="max-w-3xl mx-auto p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <span className="px-3 py-1 rounded-full text-sm border">Plan: FREE</span>
+        </div>
+
+        <div className="rounded-xl border p-4 space-y-3">
+          <p>You are on the FREE plan. Unlock PRO features.</p>
+          <p className="text-sm text-gray-500">This month used: {used} / 10 generations.</p>
+          <div className="flex gap-2">
+            <Link className="inline-flex rounded-lg border px-4 py-2 text-sm hover:bg-gray-50" href="/pricing">
+              Go to Pricing
+            </Link>
+            <Link className="inline-flex rounded-lg border px-4 py-2 text-sm hover:bg-gray-50" href="/dashboard/ai">
+              Try AI demo
+            </Link>
+            <Link className="inline-flex rounded-lg border px-4 py-2 text-sm hover:bg-gray-50" href="/dashboard/settings">
+              Settings
+            </Link>
+          </div>
+        </div>
       </main>
     );
   }
 
-  const email =
-    user.emailAddresses?.[0]?.emailAddress ||
-    user.primaryEmailAddress?.emailAddress ||
-    "unknown@email";
+  const orgId = membership.orgId;
 
-  const plan = await getPlanForNow();
-  const orgText = orgId ? `Org ID: ${orgId}` : "No org selected yet";
+  // 3) Read plan & usage for this org
+  const [sub, used] = await Promise.all([
+    prisma.subscription.findUnique({ where: { orgId }, select: { plan: true } }),
+    getUsage(orgId),
+  ]);
+
+  const plan = sub?.plan ?? "FREE";
 
   return (
-    <main className="p-8 space-y-6">
-      <section>
-        <h2 className="text-xl font-semibold">Dashboard (protected)</h2>
+    <main className="max-w-3xl mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">
+          Dashboard{membership.org?.name ? ` · ${membership.org.name}` : ""}
+        </h1>
+        <span className="px-3 py-1 rounded-full text-sm border">Plan: {plan}</span>
+      </div>
 
-        <p className="text-slate-300 text-sm mt-2">
-          Welcome,{" "}
-          <span className="font-medium text-white">{email}</span>
-        </p>
-
-        <p className="text-slate-500 text-sm">{orgText}</p>
-      </section>
-
-      <section className="rounded-xl border border-slate-800 bg-slate-950 p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm font-medium text-white">
-              Plan: {plan}
-            </div>
-            <div className="text-xs text-slate-500">
-              Free plan is limited. Pro unlocks higher AI limits.
-            </div>
+      {plan === "FREE" ? (
+        <div className="rounded-xl border p-4 space-y-3">
+          <p>You are on the FREE plan. Unlock PRO features.</p>
+          <p className="text-sm text-gray-500">This month used: {used} / 10 generations.</p>
+          <div className="flex gap-2">
+            <Link className="inline-flex rounded-lg border px-4 py-2 text-sm hover:bg-gray-50" href="/pricing">
+              Go to Pricing
+            </Link>
+            <Link className="inline-flex rounded-lg border px-4 py-2 text-sm hover:bg-gray-50" href="/dashboard/ai">
+              Try AI demo
+            </Link>
+            <Link className="inline-flex rounded-lg border px-4 py-2 text-sm hover:bg-gray-50" href="/dashboard/settings">
+              Settings
+            </Link>
           </div>
-
-          {plan === "Free" && <UpgradeButton />}
         </div>
-      </section>
-
-      <section className="text-slate-500 text-xs max-w-xl">
-        After you pay, Stripe will call our webhook. We’ll mark your org as
-        PRO in the database and this card will show Pro instead of Free.
-      </section>
+      ) : (
+        <div className="rounded-xl border p-4 space-y-3">
+          <p>✅ PRO active — unlimited generations.</p>
+          <p className="text-sm text-gray-500">This month used: {used}.</p>
+          <div className="flex gap-2">
+            <Link className="inline-flex rounded-lg border px-4 py-2 text-sm hover:bg-gray-50" href="/dashboard/ai">
+              Open AI demo
+            </Link>
+            <Link className="inline-flex rounded-lg border px-4 py-2 text-sm hover:bg-gray-50" href="/dashboard/settings">
+              Settings
+            </Link>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
