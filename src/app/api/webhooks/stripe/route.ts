@@ -1,6 +1,6 @@
 // src/app/api/webhooks/stripe/route.ts
 
-import { headers } from "next/headers";
+import { headers as nextHeaders } from "next/headers";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
 
@@ -8,8 +8,14 @@ import { prisma } from "@/lib/db";
 // On success we set that org to PRO.
 
 export async function POST(req: Request) {
+  // 1. Get raw body for Stripe signature verification
   const rawBody = await req.text();
-  const sig = headers().get("stripe-signature");
+
+  // 2. Get Stripe signature header safely
+  // NOTE: nextHeaders() returns a Headers-like object in Next 16,
+  // but TS sometimes treats it as Promise-like. We just await it.
+  const hdrs = await nextHeaders();
+  const sig = hdrs.get("stripe-signature") || "";
 
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
@@ -25,7 +31,7 @@ export async function POST(req: Request) {
   let event;
   try {
     // Stripe needs the exact raw body + signature
-    event = stripe.webhooks.constructEvent(rawBody, sig as string, webhookSecret);
+    event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
   } catch (err: any) {
     console.error("❌ Stripe signature verify failed:", err?.message);
     return new Response(
@@ -42,9 +48,7 @@ export async function POST(req: Request) {
     try {
       const session = event.data.object as any;
 
-      // You set this when creating the Checkout session
-      // in /api/billing/checkout/route.ts:
-      // metadata: { orgId }
+      // orgId is attached as metadata when we created the checkout session
       const orgId = session?.metadata?.orgId;
 
       if (orgId) {
@@ -62,9 +66,7 @@ export async function POST(req: Request) {
 
         console.log("✅ Upgraded org to PRO:", orgId);
       } else {
-        console.warn(
-          "⚠ checkout.session.completed with no orgId metadata"
-        );
+        console.warn("⚠ checkout.session.completed with no orgId metadata");
       }
     } catch (err: any) {
       console.error("❌ Failed to process checkout.session.completed:", err);
@@ -77,10 +79,10 @@ export async function POST(req: Request) {
       );
     }
   } else {
-    // Ignore other event types for now but respond 200 so Stripe doesn't retry
+    // Ignore other events but still 200 so Stripe doesn't retry spam
     console.log(`ℹ Unhandled Stripe event type: ${event.type}`);
   }
 
-  // Always send 200 OK back to Stripe if we didn't explicitly 4xx above.
+  // Always acknowledge
   return new Response(JSON.stringify({ received: true }), { status: 200 });
 }
