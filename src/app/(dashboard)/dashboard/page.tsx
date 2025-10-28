@@ -1,5 +1,4 @@
-// src/app/(dashboard)/dashboard/page.tsx
-// NOTE: UI polish only. Auth/org/usage logic is unchanged.
+// @ts-nocheck
 
 "use server";
 

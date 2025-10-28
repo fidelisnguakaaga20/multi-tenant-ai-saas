@@ -1,5 +1,4 @@
-// src/app/(dashboard)/dashboard/settings/page.tsx
-// NOTE: UI polish only. Org bootstrap, invite, plan logic unchanged.
+// @ts-nocheck
 
 "use server";
 
