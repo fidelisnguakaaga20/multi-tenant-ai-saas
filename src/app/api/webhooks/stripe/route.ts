@@ -1,88 +1,62 @@
 // src/app/api/webhooks/stripe/route.ts
+// Verifies Stripe signature and flips the org's plan to PRO.
+// Upserts Subscription by orgId (matches your schema), no extra Stripe fetch.
 
-import { headers as nextHeaders } from "next/headers";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
+import Stripe from "stripe";
 
-// We expect checkout.session.completed only.
-// On success we set that org to PRO.
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  // 1. Get raw body for Stripe signature verification
+  const sig = req.headers.get("stripe-signature");
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!secret) return new Response("Missing STRIPE_WEBHOOK_SECRET", { status: 500 });
+  if (!sig) return new Response("Missing stripe-signature", { status: 400 });
+
   const rawBody = await req.text();
 
-  // 2. Get Stripe signature header safely
-  // NOTE: nextHeaders() returns a Headers-like object in Next 16,
-  // but TS sometimes treats it as Promise-like. We just await it.
-  const hdrs = await nextHeaders();
-  const sig = hdrs.get("stripe-signature") || "";
-
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!webhookSecret) {
-    // Misconfigured deployment
-    return new Response(
-      JSON.stringify({
-        error: "Missing STRIPE_WEBHOOK_SECRET on server",
-      }),
-      { status: 500 }
-    );
-  }
-
-  let event;
+  let event: Stripe.Event;
   try {
-    // Stripe needs the exact raw body + signature
-    event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+    event = stripe.webhooks.constructEvent(rawBody, sig, secret);
   } catch (err: any) {
-    console.error("❌ Stripe signature verify failed:", err?.message);
-    return new Response(
-      JSON.stringify({
-        error: "Invalid signature",
-        message: err?.message || "no message",
-      }),
-      { status: 400 }
-    );
+    return new Response(`Invalid signature: ${err.message}`, { status: 400 });
   }
 
-  // We only really care about checkout.session.completed
   if (event.type === "checkout.session.completed") {
-    try {
-      const session = event.data.object as any;
+    const session = event.data.object as Stripe.Checkout.Session;
 
-      // orgId is attached as metadata when we created the checkout session
-      const orgId = session?.metadata?.orgId;
-
-      if (orgId) {
-        // Mark subscription as PRO
-        await prisma.subscription.upsert({
-          where: { orgId },
-          create: {
-            orgId,
-            plan: "PRO",
-          },
-          update: {
-            plan: "PRO",
-          },
-        });
-
-        console.log("✅ Upgraded org to PRO:", orgId);
-      } else {
-        console.warn("⚠ checkout.session.completed with no orgId metadata");
-      }
-    } catch (err: any) {
-      console.error("❌ Failed to process checkout.session.completed:", err);
-      return new Response(
-        JSON.stringify({
-          error: "Failed to upgrade org to PRO",
-          message: err?.message || "no message",
-        }),
-        { status: 500 }
-      );
+    const orgId = session.metadata?.orgId || null;
+    if (!orgId) {
+      // Acknowledge to avoid retries; nothing to update without orgId.
+      return new Response("No orgId in metadata", { status: 200 });
     }
-  } else {
-    // Ignore other events but still 200 so Stripe doesn't retry spam
-    console.log(`ℹ Unhandled Stripe event type: ${event.type}`);
+
+    const stripeCustomerId =
+      typeof session.customer === "string" ? session.customer : session.customer?.id || null;
+
+    const stripeSubscriptionId =
+      typeof session.subscription === "string"
+        ? session.subscription
+        : session.subscription?.id || null;
+
+    await prisma.subscription.upsert({
+      where: { orgId },
+      create: {
+        orgId,
+        plan: "PRO",
+        stripeCustomerId: stripeCustomerId || undefined,
+        stripeSubscriptionId: stripeSubscriptionId || undefined,
+      },
+      update: {
+        plan: "PRO",
+        stripeCustomerId: stripeCustomerId || undefined,
+        stripeSubscriptionId: stripeSubscriptionId || undefined,
+      },
+    });
   }
 
-  // Always acknowledge
-  return new Response(JSON.stringify({ received: true }), { status: 200 });
+  return new Response("ok", { status: 200 });
 }
