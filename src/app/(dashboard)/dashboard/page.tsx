@@ -8,7 +8,9 @@ import Link from "next/link";
 const FREE_LIMIT = 10;
 
 export default async function DashboardPage() {
+  //
   // 1) Auth
+  //
   const user = await currentUser();
   if (!user) {
     return (
@@ -25,29 +27,34 @@ export default async function DashboardPage() {
     user.emailAddresses?.[0]?.emailAddress ?? "unknown";
   const firstName = user.firstName ?? "My";
 
-  // 2) Find or create org membership
+  //
+  // 2) Find or create membership/org/subscription
+  //
   let membership = await prisma.membership.findFirst({
     where: { user: { clerkUserId } },
-    include: { org: { include: { subscription: true } } },
+    include: {
+      org: {
+        include: {
+          subscription: true,
+        },
+      },
+    },
     orderBy: { createdAt: "asc" },
   });
 
   if (!membership) {
-    // same workaround for prisma.org typing
-    const db: any = prisma;
-
-    const newOrg = await db.org.create({
+    const newOrg = await prisma.organization.create({
       data: {
         name: `${firstName.toUpperCase()} Workspace`,
-        users: {
+        memberships: {
           create: {
+            role: "OWNER",
             user: {
               create: {
                 clerkUserId,
                 email,
               },
             },
-            role: "OWNER",
           },
         },
         subscription: {
@@ -56,7 +63,9 @@ export default async function DashboardPage() {
           },
         },
       },
-      include: { subscription: true },
+      include: {
+        subscription: true,
+      },
     });
 
     membership = {
@@ -68,21 +77,27 @@ export default async function DashboardPage() {
   const orgId = membership.orgId;
   const plan = membership.org?.subscription?.plan ?? "FREE";
 
-  // 3) Usage for this org
+  //
+  // 3) Usage stats
+  //
   const used = await getUsage(orgId);
 
   const remainingText =
     plan === "PRO"
       ? "unlimited"
-      : `${Math.max(FREE_LIMIT - used, 0)} left this month`;
+      : `${Math.max(FREE_LIMIT - used, 0)} / ${FREE_LIMIT} left this month`;
 
+  //
   // 4) UI
+  //
   return (
     <main className="min-h-screen bg-black text-white p-6">
       <div className="flex items-start justify-between mb-6">
         <h1 className="text-2xl font-bold">
           Dashboard ·{" "}
-          <span className="uppercase">{firstName} Workspace</span>
+          <span className="uppercase">
+            {firstName} WORKSPACE
+          </span>
         </h1>
 
         <div className="border border-gray-500 rounded-full px-3 py-1 text-xs font-medium">
@@ -92,19 +107,33 @@ export default async function DashboardPage() {
 
       <section className="border border-gray-600 rounded-xl p-4 max-w-xl space-y-3 bg-black/40">
         <div className="flex items-start gap-2">
-          <div className="text-green-400 text-xl leading-none">▣</div>
+          <div className="text-green-400 text-xl leading-none">
+            ▣
+          </div>
           <div className="text-sm leading-relaxed">
             <div className="font-semibold text-green-400">
               {plan === "PRO"
                 ? "PRO active — unlimited generations."
                 : "FREE plan — limited monthly generations."}
             </div>
+
             <div className="text-gray-300 text-sm mt-1">
               This month used:{" "}
               <span className="font-semibold">{used}</span>
-              {plan === "PRO"
-                ? "."
-                : ` (${remainingText})`}
+              {plan === "PRO" ? (
+                <span className="text-green-400">
+                  {" "}
+                  (unlimited)
+                </span>
+              ) : (
+                <>
+                  {" "}
+                  (<span className="text-yellow-300">
+                    {remainingText}
+                  </span>
+                  )
+                </>
+              )}
             </div>
           </div>
         </div>
