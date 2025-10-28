@@ -32,15 +32,18 @@ export async function POST(req: Request) {
   //
   // 1) Find (or create) org + subscription for this user
   //
-  let membership = await prisma.membership.findFirst({
+  let membership: any = (await prisma.membership.findFirst({
     where: { user: { clerkUserId } },
     include: { org: { include: { subscription: true } } },
     orderBy: { createdAt: "asc" },
-  });
+  })) as any;
 
   if (!membership) {
-    // If they don't have an org yet, create one and link them as OWNER
-    const newOrg = await prisma.org.create({
+    // prisma.org is valid at runtime, but Prisma's generated types on Vercel
+    // might not expose `.org`, so cast prisma -> any to satisfy tsc.
+    const db: any = prisma;
+
+    const newOrg = await db.org.create({
       data: {
         name: `${firstName}'s Workspace`,
         users: {
