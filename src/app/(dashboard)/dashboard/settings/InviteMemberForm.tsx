@@ -47,7 +47,7 @@ export function InviteMemberForm({ canInvite }: { canInvite: boolean }) {
         <input
           type="email"
           className="bg-black border border-gray-700 rounded px-3 py-2 text-white text-sm outline-none disabled:opacity-50"
-          placeholder="teammate@example.com"
+          placeholder="To invite oneone, write their email here. e.g fidelisnguakaaga20@gmail.com"
           value={email}
           disabled={loading || !canInvite}
           onChange={(e) => setEmail(e.target.value)}
