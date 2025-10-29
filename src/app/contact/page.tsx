@@ -9,7 +9,6 @@ export default function ContactPage() {
 
       <div className="rounded-xl border p-4 space-y-3">
         <p>Email: <a className="underline" href="mailto:support@example.com">fidelisnguakaaga20@gmail.com</a></p>
-        <p>LinkedIn: <code>https://www.linkedin.com/in/nguakaaga-mvendaga</code></p>
         <p>WhatsApp: <code>+2347031128081</code></p>
         <p>Subject: <code>Enterprise plan inquiry</code></p>
       </div>

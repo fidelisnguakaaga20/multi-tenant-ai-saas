@@ -17,7 +17,7 @@ export default function MarketingHomePage() {
         </div>
 
         <p className="text-xs text-slate-500 dark:text-slate-500">
-          You’re seeing the the Multi Tenant AI SaaS Page.
+          You’re seeing the Multi Tenant AI SaaS Page.
         </p>
       </div>
     </section>
