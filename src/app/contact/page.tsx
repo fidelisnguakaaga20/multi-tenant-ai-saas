@@ -14,7 +14,7 @@ export default function ContactPage() {
       </div>
 
       <a href="/pricing" className="inline-block rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
-        ← Back to Pricing & Home Page
+        ← Back to Pricing
       </a>
     </main>
   );

@@ -1,24 +1,62 @@
 // src/app/(marketing)/page.tsx
+import Link from "next/link";
+
 export default function MarketingHomePage() {
   return (
-    <section className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="max-w-xl space-y-6 px-4">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          Multi-Tenant AI SaaS
-        </h1>
+    <section className="bg-gradient-to-b from-black via-slate-950 to-black text-white">
+      <div className="mx-auto max-w-6xl px-4 py-20">
+        <div className="mx-auto max-w-3xl text-center space-y-6">
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
+            Workspaces for AI-powered teams
+          </h1>
+          <p className="text-base text-slate-300">
+            Separate orgs, role-based access, monthly usage limits, and Stripe
+            billing — all ready to deploy.
+          </p>
 
-        <p className="text-base text-slate-600 dark:text-slate-400">
-          Secure AI workspaces for teams. Org-based access, usage limits, and
-          Stripe billing — all in one dashboard.
-        </p>
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <Link
+              href="/dashboard"
+              className="rounded-lg border border-transparent bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-slate-200"
+            >
+              Go to Dashboard
+            </Link>
+            <Link
+              href="/pricing"
+              className="rounded-lg border border-slate-600 bg-slate-900/60 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-black"
+            >
+              View Pricing
+            </Link>
+          </div>
 
-        <div className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          Welcome ✅
+          <p className="text-xs text-slate-500">Welcome ✅</p>
         </div>
 
-        <p className="text-xs text-slate-500 dark:text-slate-500">
-          You’re seeing the Multi Tenant AI SaaS Page.
-        </p>
+        {/* quick feature rows */}
+        <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-3">
+          {[
+            ["Org-based", "Each user gets a workspace with members & roles."],
+            ["Usage limits", "Free = 10/mo. PRO = unlimited."],
+            ["Stripe ready", "Checkout, webhooks, plan badge & gating."],
+          ].map(([title, desc]) => (
+            <div
+              key={title}
+              className="rounded-2xl border border-slate-700 bg-slate-900/60 p-5"
+            >
+              <div className="text-sm font-semibold">{title}</div>
+              <div className="mt-1 text-xs text-slate-300">{desc}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-10">
+          <Link
+            href="/dashboard/ai"
+            className="inline-block rounded-lg border border-slate-600 bg-slate-900/60 px-4 py-2 text-sm font-semibold hover:bg-white hover:text-black"
+          >
+            Try the AI demo →
+          </Link>
+        </div>
       </div>
     </section>
   );
