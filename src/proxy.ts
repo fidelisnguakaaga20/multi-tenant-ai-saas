@@ -1,6 +1,3 @@
-// src/middleware.ts
-// Goal: protect only /dashboard (and keep Stripe webhook public)
-
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const isProtectedRoute = createRouteMatcher([
