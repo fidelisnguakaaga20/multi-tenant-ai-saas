@@ -31,18 +31,144 @@ export async function dbPing() {
   }
 }
 
+/**
+ * Document helpers
+ * Used by Proposal / Scope / Follow-up tools
+ */
+export const DocumentModel = {
+  create(args: {
+    orgId: string
+    userId: string
+    type: string // "PROPOSAL" | "SCOPE" | "FOLLOW_UP" etc.
+    title: string
+    content: string
+  }) {
+    const { orgId, userId, type, title, content } = args
+    return prisma.document.create({
+      data: {
+        orgId,
+        userId,
+        type,
+        title,
+        content,
+      },
+    })
+  },
 
+  listForOrg(orgId: string) {
+    return prisma.document.findMany({
+      where: { orgId },
+      orderBy: { createdAt: 'desc' },
+    })
+  },
 
-// // src/lib/db.ts
-// import { PrismaClient } from "@prisma/client";
+  getForOrg(orgId: string, id: string) {
+    return prisma.document.findFirst({
+      where: { id, orgId },
+    })
+  },
 
-// const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
+  updateForOrg(orgId: string, id: string, data: { title?: string; content?: string }) {
+    return prisma.document.updateMany({
+      where: { id, orgId },
+      data,
+    })
+  },
 
-// export const prisma =
-//   globalForPrisma.prisma ||
-//   new PrismaClient({
-//     // log: ["query"], // /// enable if you want to debug
-//   });
+  deleteForOrg(orgId: string, id: string) {
+    return prisma.document.deleteMany({
+      where: { id, orgId },
+    })
+  },
+}
 
-// if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+/**
+ * Template helpers
+ * Org-level templates for proposals / scopes / emails
+ */
+export const TemplateModel = {
+  create(args: {
+    orgId: string
+    createdBy?: string | null
+    type: string // "PROPOSAL" | "SCOPE" | "FOLLOW_UP"
+    name: string
+    body: string
+  }) {
+    const { orgId, createdBy, type, name, body } = args
+    return prisma.template.create({
+      data: {
+        orgId,
+        createdBy: createdBy ?? null,
+        type,
+        name,
+        body,
+      },
+    })
+  },
+
+  listForOrg(orgId: string) {
+    return prisma.template.findMany({
+      where: { orgId },
+      orderBy: { createdAt: 'desc' },
+    })
+  },
+
+  getForOrg(orgId: string, id: string) {
+    return prisma.template.findFirst({
+      where: { id, orgId },
+    })
+  },
+
+  updateForOrg(
+    orgId: string,
+    id: string,
+    data: { name?: string; body?: string; type?: string },
+  ) {
+    return prisma.template.updateMany({
+      where: { id, orgId },
+      data,
+    })
+  },
+
+  deleteForOrg(orgId: string, id: string) {
+    return prisma.template.deleteMany({
+      where: { id, orgId },
+    })
+  },
+}
+
+/**
+ * Usage helpers
+ * Used by usage/billing dashboard (later)
+ */
+export const UsageModel = {
+  async incrementGenerations(orgId: string, month: string, amount: number = 1) {
+    const existing = await prisma.usageRecord.findFirst({
+      where: { orgId, month },
+    })
+
+    if (!existing) {
+      return prisma.usageRecord.create({
+        data: {
+          orgId,
+          month,
+          generations: amount,
+        },
+      })
+    }
+
+    return prisma.usageRecord.update({
+      where: { id: existing.id },
+      data: {
+        generations: existing.generations + amount,
+      },
+    })
+  },
+
+  getForOrgAndMonth(orgId: string, month: string) {
+    return prisma.usageRecord.findFirst({
+      where: { orgId, month },
+    })
+  },
+}
 

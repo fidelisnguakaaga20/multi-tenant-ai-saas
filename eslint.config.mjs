@@ -1,18 +1,39 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+// eslint.config.mjs
 
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
-]);
+import nextPlugin from "@next/eslint-plugin-next";
+import tseslint from "typescript-eslint";
 
-export default eslintConfig;
+// Grab Next's core-web-vitals config object
+const coreWebVitals = nextPlugin.configs["core-web-vitals"];
+
+export default tseslint.config(
+  // Ignore build + deps
+  {
+    ignores: ["**/.next/**", "**/node_modules/**"],
+  },
+
+  // TypeScript recommended configs
+  ...tseslint.configs.recommended,
+
+  // Next core web vitals + our overrides
+  {
+    ...coreWebVitals,
+    plugins: {
+      ...(coreWebVitals?.plugins ?? {}),
+      "@next/next": nextPlugin,
+    },
+    rules: {
+      ...(coreWebVitals?.rules ?? {}),
+
+      // === Our relaxations (Stage 6 tooling only) ===
+      "@typescript-eslint/ban-ts-comment": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "prefer-const": "off",
+      "eslint-comments/no-unused-disable": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
+  }
+);

@@ -1,8 +1,13 @@
 // src/lib/stripe.ts
-// Stripe client configured for the latest API version your SDK expects.
-
 import Stripe from "stripe";
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-09-30.clover", // ✅ match installed SDK
-});
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+
+if (!stripeSecretKey) {
+  throw new Error("STRIPE_SECRET_KEY is not set");
+}
+
+// Let Stripe use the account's configured API version.
+// This avoids type/runtime mismatches from hard-coded future versions.
+export const stripe = new Stripe(stripeSecretKey, {});
+

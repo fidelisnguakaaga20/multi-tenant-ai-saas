@@ -1,3 +1,4 @@
+// src/app/(dashboard)/dashboard/settings/page.tsx
 // @ts-nocheck
 
 "use server";
@@ -9,6 +10,13 @@ import Link from "next/link";
 import { InviteMemberForm } from "./InviteMemberForm";
 
 const FREE_LIMIT = 10;
+
+// Map DB role to product-facing role (Stage 5)
+function mapDisplayRole(role: string) {
+  if (role === "ADMIN") return "MANAGER";
+  if (role === "MEMBER") return "CONTRIBUTOR";
+  return role;
+}
 
 export default async function SettingsPage() {
   // 1) Auth (guarded for Clerk dev hiccups)
@@ -92,6 +100,7 @@ export default async function SettingsPage() {
   const org = membership.org;
   const orgId = org.id;
   const role = membership.role; // OWNER / ADMIN / MEMBER
+  const displayRole = mapDisplayRole(role);
   const isOwnerOrAdmin = role === "OWNER" || role === "ADMIN";
   const plan = org.subscription?.plan ?? "FREE";
 
@@ -102,12 +111,12 @@ export default async function SettingsPage() {
       ? "unlimited"
       : `${Math.max(FREE_LIMIT - used, 0)} / ${FREE_LIMIT} left this month`;
 
-  // 4) Members list
+  // 4) Members list (mapped to OWNER / MANAGER / CONTRIBUTOR)
   const members =
     org.memberships?.map((m: any) => {
       return {
         email: m.user?.email ?? "unknown",
-        role: m.role,
+        role: mapDisplayRole(m.role),
       };
     }) ?? [];
 
@@ -124,7 +133,7 @@ export default async function SettingsPage() {
             </div>
             <div className="text-[11px] text-slate-500">
               Role:{" "}
-              <span className="font-medium text-white">{role}</span>
+              <span className="font-medium text-white">{displayRole}</span>
             </div>
           </div>
 
@@ -196,7 +205,7 @@ export default async function SettingsPage() {
           </div>
         </section>
 
-        {/* Invite teammate (OWNER / ADMIN only) */}
+        {/* Invite teammate (OWNER / MANAGER only via isOwnerOrAdmin) */}
         <InviteMemberForm canInvite={isOwnerOrAdmin} />
 
         {/* Footer actions */}

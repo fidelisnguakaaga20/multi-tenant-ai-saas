@@ -47,7 +47,7 @@ export function InviteMemberForm({ canInvite }: { canInvite: boolean }) {
         <input
           type="email"
           className="bg-black border border-gray-700 rounded px-3 py-2 text-white text-sm outline-none disabled:opacity-50"
-          placeholder="To invite oneone, write their email here. e.g fidelisnguakaaga20@gmail.com"
+          placeholder="To invite someone, write their email here. e.g fidelisnguakaaga20@gmail.com"
           value={email}
           disabled={loading || !canInvite}
           onChange={(e) => setEmail(e.target.value)}
@@ -68,7 +68,7 @@ export function InviteMemberForm({ canInvite }: { canInvite: boolean }) {
 
         {!canInvite && (
           <div className="text-xs text-gray-500">
-            Only OWNER / ADMIN can invite members.
+            Only OWNER / MANAGER can invite members.
           </div>
         )}
 
@@ -81,3 +81,4 @@ export function InviteMemberForm({ canInvite }: { canInvite: boolean }) {
     </section>
   );
 }
+
